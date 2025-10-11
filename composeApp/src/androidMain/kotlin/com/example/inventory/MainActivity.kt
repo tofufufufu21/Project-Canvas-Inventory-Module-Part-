@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 
 class MainActivity : ComponentActivity() {
 
+    //bukas ko na gawin rest day muna
     private lateinit var supabase: SupabaseClient
     private lateinit var repository: WarehouseRepository
 
