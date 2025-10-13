@@ -115,20 +115,30 @@ fun AddStockDialog(
                                         val localDateTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
                                         val dateCreated = "${localDateTime.date} ${localDateTime.time}"
 
-                                        val item = WarehouseItem(
-                                            product_name = productName,
-                                            product_image_url = productImage?.toString(),
-                                            category_type = categoryType,
-                                            sub_category = subCategory.ifBlank { null },
-                                            quantity = quantity.toDoubleOrNull() ?: 0.0,
-                                            unit = unit,
-                                            preparation_method = prepMethod,
-                                            has_expiry = hasExpiry,
-                                            expiry_date = if (hasExpiry) expiryDates.joinToString(";") else null,
-                                            date_created = dateCreated
-                                        )
+                                        val qtyCount = quantity.toIntOrNull() ?: 0
 
-                                        repository.insertItem(item)
+                                        if (qtyCount <= 0) {
+                                            snackbarHostState.showSnackbar("Quantity must be at least 1.")
+                                            return@launch
+                                        }
+
+                                        // Insert each item separately for idempotent records
+                                        repeat(qtyCount) { index ->
+                                            val item = WarehouseItem(
+                                                product_name = productName,
+                                                product_image_url = productImage?.toString(),
+                                                category_type = categoryType,
+                                                sub_category = subCategory.ifBlank { null },
+                                                quantity = 1.0, // Each record = one unit
+                                                unit = unit,
+                                                preparation_method = prepMethod,
+                                                has_expiry = hasExpiry,
+                                                expiry_date = if (hasExpiry) expiryDates.getOrNull(index) else null,
+                                                date_created = dateCreated
+                                            )
+                                            repository.insertItem(item)
+                                        }
+
                                         onItemAdded()
                                         currentStep = AddStockStep.SUCCESS
                                     } catch (e: Exception) {
@@ -144,6 +154,7 @@ fun AddStockDialog(
                     } else {
                         Spacer(modifier = Modifier.width(48.dp))
                     }
+
                 }
                 Spacer(Modifier.height(8.dp))
                 if (currentStep != AddStockStep.SUCCESS) {
