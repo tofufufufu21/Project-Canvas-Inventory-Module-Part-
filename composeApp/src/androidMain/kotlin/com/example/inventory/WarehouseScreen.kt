@@ -48,7 +48,7 @@ fun WarehouseScreen(repository: WarehouseRepository) {
             // Content based on selected tab
             when (selectedTab) {
                 "Warehouse" -> WarehouseTabContent(repository)
-                "In-Kitchen" -> InKitchenScreen(repository)
+                "In-Kitchen" -> InKitchenScreen(repository) // now displays in_kitchen contents by default
             }
         }
     }
