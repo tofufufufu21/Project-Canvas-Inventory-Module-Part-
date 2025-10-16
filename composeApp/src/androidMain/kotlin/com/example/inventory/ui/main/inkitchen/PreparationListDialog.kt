@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.Color
 import com.example.inventory.data.model.WarehouseItem
 import com.example.inventory.ui.main.warehouse.WarehouseViewModel
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ fun PreparationListDialog(
     var step by remember { mutableStateOf(0) }
     val selectedItems = remember { mutableStateListOf<WarehouseItem>() }
 
+    // ✅ Configuration data per item
     data class Config(
         var transferQuantity: String = "1",
         var unit: String = "Pc",
@@ -36,7 +38,8 @@ fun PreparationListDialog(
         var shelfLifeValue: String = "",
         var shelfLifeUnit: String = "days",
         var useManufacturerExpiry: Boolean = false,
-        var expiryIso: String? = null
+        var expiryIso: String? = null,
+        var errorMessage: String? = null // ✅ Added error message per item
     )
 
     val configMap = remember { mutableStateMapOf<Long, MutableState<Config>>() }
@@ -59,7 +62,9 @@ fun PreparationListDialog(
         Surface(
             shape = RoundedCornerShape(12.dp),
             tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().padding(24.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -113,7 +118,7 @@ fun PreparationListDialog(
                         }
                     }
 
-                    // Step 1: Configuration
+                    // Step 1: Configuration (⚙️ Added error handling here)
                     1 -> {
                         if (selectedItems.isEmpty()) {
                             Text("No items selected.")
@@ -130,18 +135,29 @@ fun PreparationListDialog(
                                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                                         Text(item.product_name, style = MaterialTheme.typography.titleMedium)
 
+                                        // ✅ Show error message in red if invalid
+                                        if (cfg.errorMessage != null) {
+                                            Text(
+                                                text = cfg.errorMessage!!,
+                                                color = Color.Red,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+
                                         Spacer(Modifier.height(8.dp))
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             OutlinedTextField(
                                                 value = cfg.transferQuantity,
                                                 onValueChange = {
                                                     cfgState.value = cfg.copy(
-                                                        transferQuantity = it.filter { ch -> ch.isDigit() || ch == '.' }
+                                                        transferQuantity = it.filter { ch -> ch.isDigit() || ch == '.' },
+                                                        errorMessage = null // reset error when editing
                                                     )
                                                 },
                                                 label = { Text("Quantity") },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                                modifier = Modifier.weight(1f)
+                                                modifier = Modifier.weight(1f),
+                                                isError = cfg.errorMessage != null // highlight red on error
                                             )
                                             Spacer(Modifier.width(8.dp))
                                             OutlinedTextField(
@@ -280,7 +296,24 @@ fun PreparationListDialog(
                         1 -> {
                             TextButton(onClick = { step = 0 }) { Text("Back") }
                             Spacer(Modifier.width(8.dp))
-                            Button(onClick = { step = 2 }) { Text("Next") }
+                            Button(onClick = {
+                                // ✅ Validate before going next
+                                var hasError = false
+                                selectedItems.forEach { item ->
+                                    val id = item.id ?: return@forEach
+                                    val cfgState = configMap[id] ?: return@forEach
+                                    val cfg = cfgState.value
+                                    val qty = cfg.transferQuantity.toDoubleOrNull()
+                                    if (qty == null || qty <= 0) {
+                                        cfgState.value = cfg.copy(errorMessage = "⚠️ Invalid quantity")
+                                        hasError = true
+                                    } else if (qty > (item.quantity ?: 0.0)) {
+                                        cfgState.value = cfg.copy(errorMessage = "❌ Exceeds available stock (${item.quantity})")
+                                        hasError = true
+                                    }
+                                }
+                                if (!hasError) step = 2
+                            }) { Text("Next") }
                         }
 
                         2 -> {

@@ -19,5 +19,7 @@ data class WarehouseItem(
     val created_by: String? = null,
     val notes: String? = null,
 
-    val serving_size: Double? = null
+    val serving_size: Double? = null,
+    val shelf_life_value: Double? = null,
+    val shelf_life_unit: String? = null
 )
