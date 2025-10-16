@@ -26,7 +26,11 @@ kotlin {
         }
 
     }
-
+    sourceSets {
+        val androidMain by getting {
+            kotlin.srcDir("src/androidMain/kotlin")
+        }
+    }
 
 
     listOf(

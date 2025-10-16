@@ -16,24 +16,20 @@ import com.example.inventory.ui.main.warehouse.WarehouseViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InKitchenScreen(
-    inKitchenViewModel: InKitchenViewModel,
+    viewModel: InKitchenViewModel,
     warehouseViewModel: WarehouseViewModel
 ) {
-    val inKitchenItems by inKitchenViewModel.inKitchenItems.collectAsState()
-    val warehouseItems by warehouseViewModel.warehouseItems.collectAsState()
+    val inKitchenItems by viewModel.inKitchenItems.collectAsState()
+    val warehouseItems by warehouseViewModel.warehouseItems.collectAsState() // ✅ fixed
 
     var showPreparation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        inKitchenViewModel.loadItems()
+        viewModel.loadItems()
         warehouseViewModel.loadItems()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(12.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -57,24 +53,22 @@ fun InKitchenScreen(
             LazyColumn {
                 items(inKitchenItems) { item ->
                     InKitchenRow(item)
-                    HorizontalDivider()
+                    Divider()
                 }
             }
         }
     }
 
-    // ✅ Preparation list dialog — where transfer happens
     if (showPreparation) {
         PreparationListDialog(
             warehouseItems = warehouseItems,
             onDismiss = { showPreparation = false },
             onTransferComplete = {
-                inKitchenViewModel.loadItems()
+                viewModel.loadItems()
                 warehouseViewModel.loadItems()
-                showPreparation = false
             },
             warehouseViewModel = warehouseViewModel,
-            inKitchenViewModel = inKitchenViewModel
+            inKitchenViewModel = viewModel
         )
     }
 }
@@ -88,7 +82,7 @@ fun InKitchenRow(item: InKitchenItem) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(item.product_name)
-        Text("${item.current_quantity} ${item.unit}")
+        Text("${item.current_quantity} ${item.unit ?: ""}")
         Text(item.status)
     }
 }

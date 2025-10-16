@@ -21,9 +21,10 @@ class WarehouseViewModel(
     fun loadItems() {
         viewModelScope.launch {
             try {
-                _warehouseItems.value = repository.getAllWarehouseItems()
+                _warehouseItems.value = repository.fetchWarehouseItems()
             } catch (e: Exception) {
                 e.printStackTrace()
+                _warehouseItems.value = emptyList()
             }
         }
     }
@@ -52,15 +53,17 @@ class WarehouseViewModel(
         }
     }
 
-    // ✅ Public wrapper to transfer item → in_kitchen
+    // ✅ Transfer item → in_kitchen (with full parameters)
     suspend fun transferToInKitchen(
         warehouseItem: WarehouseItem,
         transferQuantity: Double,
         unit: String,
         shelfLifeValue: Double?,
         shelfLifeUnit: String?,
-        preparationMethod: String,
-        expiryIso: String?
+        preparationMethod: String?,
+        expiryIso: String?,
+        servingSize: Double? = null,
+        expiryBasedOnManufacturer: Boolean = false
     ): Boolean {
         return try {
             repository.transferToInKitchenSingle(
@@ -69,8 +72,10 @@ class WarehouseViewModel(
                 unit = unit,
                 shelfLifeValue = shelfLifeValue,
                 shelfLifeUnit = shelfLifeUnit,
-                preparationMethod = preparationMethod,
-                expiryIso = expiryIso
+                preparationMethod = preparationMethod ?: "Direct Open",
+                expiryIso = expiryIso,
+                servingSize = servingSize,
+                expiryBasedOnManufacturer = expiryBasedOnManufacturer
             )
         } catch (e: Exception) {
             e.printStackTrace()

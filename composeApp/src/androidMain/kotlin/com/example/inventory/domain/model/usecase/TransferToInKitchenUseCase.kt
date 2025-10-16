@@ -7,7 +7,9 @@ import com.example.inventory.data.model.repository.WarehouseRepository
  * ✅ Use case to handle transferring a single warehouse item to the in_kitchen table.
  * This calls the new transferToInKitchenSingle() method from WarehouseRepository.
  */
-class TransferToInKitchenUseCase(private val repository: WarehouseRepository) {
+class TransferToInKitchenUseCase(
+    private val repository: WarehouseRepository
+) {
 
     suspend operator fun invoke(
         item: WarehouseItem,
@@ -15,8 +17,10 @@ class TransferToInKitchenUseCase(private val repository: WarehouseRepository) {
         unit: String,
         shelfLifeValue: Double?,
         shelfLifeUnit: String?,
-        prepMethod: String,
-        expiryIso: String? = null
+        prepMethod: String?,
+        expiryIso: String? = null,
+        servingSize: Double? = null,
+        expiryBasedOnManufacturer: Boolean = false
     ): Boolean {
         return repository.transferToInKitchenSingle(
             warehouseItem = item,
@@ -25,7 +29,9 @@ class TransferToInKitchenUseCase(private val repository: WarehouseRepository) {
             shelfLifeValue = shelfLifeValue,
             shelfLifeUnit = shelfLifeUnit,
             preparationMethod = prepMethod,
-            expiryIso = expiryIso
+            expiryIso = expiryIso,
+            servingSize = servingSize,
+            expiryBasedOnManufacturer = expiryBasedOnManufacturer
         )
     }
 }

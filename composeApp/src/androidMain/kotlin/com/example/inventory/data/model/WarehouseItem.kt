@@ -17,5 +17,7 @@ data class WarehouseItem(
     val date_created: String? = null,
     val idempotency_key: String? = null,
     val created_by: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
+
+    val serving_size: Double? = null
 )

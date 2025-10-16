@@ -69,7 +69,7 @@ fun WarehouseScreen(
             when (tabIndex) {
                 0 -> WarehouseList(warehouseItems)
                 1 -> InKitchenScreen(
-                    inKitchenViewModel = inKitchenViewModel,
+                    viewModel = inKitchenViewModel, // ✅ Fixed name
                     warehouseViewModel = warehouseViewModel
                 )
             }

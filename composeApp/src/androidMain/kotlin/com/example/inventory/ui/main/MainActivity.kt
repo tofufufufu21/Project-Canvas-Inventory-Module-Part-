@@ -6,8 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.inventory.data.model.remote.SupabaseService
 import com.example.inventory.data.model.repository.WarehouseRepository
-import com.example.inventory.domain.model.usecase.GetInKitchenItemsUseCase
-import com.example.inventory.domain.model.usecase.TransferToInKitchenUseCase
 import com.example.inventory.ui.main.inkitchen.InKitchenViewModel
 import com.example.inventory.ui.main.inkitchen.InKitchenViewModelFactory
 import com.example.inventory.ui.main.warehouse.WarehouseScreen
@@ -17,7 +15,8 @@ import com.example.inventory.ui.theme.Theme
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 
-class  MainActivity : ComponentActivity() {
+
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

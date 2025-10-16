@@ -1,84 +1,68 @@
 package com.example.inventory.data.model.repository
 
+import android.content.Context
+import android.net.Uri
 import com.example.inventory.data.model.InKitchenItem
 import com.example.inventory.data.model.WarehouseItem
 import com.example.inventory.data.model.remote.SupabaseService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class WarehouseRepository(private val supabaseService: SupabaseService) {
+class WarehouseRepository(
+    private val supabaseService: SupabaseService
+) {
 
     // ✅ Fetch all warehouse items
-    suspend fun getAllWarehouseItems(): List<WarehouseItem> {
-        return try {
-            supabaseService.fetchWarehouseItems()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-
-    // ✅ Add warehouse item
-    suspend fun addWarehouseItem(item: WarehouseItem) {
-        try {
-            supabaseService.addWarehouseItem(item)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            throw e
-        }
-    }
-
-    // ✅ Delete warehouse item
-    suspend fun deleteWarehouseItem(id: Long): Boolean {
-        return try {
-            supabaseService.deleteWarehouseItem(id)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+    suspend fun fetchWarehouseItems(): List<WarehouseItem> = withContext(Dispatchers.IO) {
+        supabaseService.fetchWarehouseItems()
     }
 
     // ✅ Fetch all in-kitchen items
-    suspend fun getAllInKitchenItems(): List<InKitchenItem> {
-        return try {
-            supabaseService.fetchInKitchenItems()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
+    suspend fun fetchInKitchenItems(): List<InKitchenItem> = withContext(Dispatchers.IO) {
+        supabaseService.fetchInKitchenItems()
     }
 
-    // ✅ Add in-kitchen item
-    suspend fun addInKitchenItem(item: InKitchenItem) {
-        try {
-            supabaseService.addInKitchenItem(item)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            throw e
-        }
+    // ✅ Add new warehouse item
+    suspend fun addWarehouseItem(item: WarehouseItem) = withContext(Dispatchers.IO) {
+        supabaseService.addWarehouseItem(item)
     }
 
-    // ✅ Transfer a single warehouse item → in_kitchen and remove from warehouse
+    // ✅ Delete warehouse item by ID
+    suspend fun deleteWarehouseItem(id: Long): Boolean = withContext(Dispatchers.IO) {
+        supabaseService.deleteWarehouseItem(id)
+    }
+
+    // ✅ Upload image to Supabase Storage
+    suspend fun uploadImage(
+        context: Context,
+        imageUri: Uri,
+        bucket: String = "product-images"
+    ): String? = withContext(Dispatchers.IO) {
+        supabaseService.uploadImage(context, imageUri, bucket)
+    }
+
+    // ✅ Transfer item from warehouse → in_kitchen
     suspend fun transferToInKitchenSingle(
         warehouseItem: WarehouseItem,
         transferQuantity: Double,
         unit: String,
         shelfLifeValue: Double?,
         shelfLifeUnit: String?,
-        preparationMethod: String,
-        expiryIso: String?
-    ): Boolean {
-        return try {
-            supabaseService.transferToInKitchenSingle(
-                warehouseItem = warehouseItem,
-                transferQuantity = transferQuantity,
-                unit = unit,
-                shelfLifeValue = shelfLifeValue,
-                shelfLifeUnit = shelfLifeUnit,
-                preparationMethod = preparationMethod,
-                expiryIso = expiryIso
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+        preparationMethod: String?,
+        expiryIso: String?,
+        servingSize: Double?,
+        expiryBasedOnManufacturer: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        supabaseService.transferToInKitchenSingle(
+            warehouseItem,
+            transferQuantity,
+            unit,
+            shelfLifeValue,
+            shelfLifeUnit,
+            preparationMethod,
+            expiryIso,
+            servingSize,
+            expiryBasedOnManufacturer
+        )
     }
 }
