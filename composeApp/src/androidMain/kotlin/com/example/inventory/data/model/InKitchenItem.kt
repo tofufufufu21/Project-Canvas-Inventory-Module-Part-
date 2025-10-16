@@ -1,6 +1,7 @@
-package com.example.inventory
+package com.example.inventory.data.model
 
 import kotlinx.serialization.Serializable
+
 @Serializable
 data class InKitchenItem(
     val id: String? = null,
