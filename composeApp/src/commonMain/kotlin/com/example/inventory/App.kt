@@ -1,47 +1,87 @@
 package com.example.inventory
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import com.example.inventory.pos.PosMainScreen
+import com.example.inventory.pos.PosViewModel
 
-import inventory.composeapp.generated.resources.Res
-import inventory.composeapp.generated.resources.compose_multiplatform
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Preview
-fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+fun App(inventoryScreen: @Composable () -> Unit) {
+    var selected by remember { mutableStateOf(0) }
+    val items = listOf("Dashboard", "Analytics", "Inventory")
+    val icons: List<ImageVector> = listOf(Icons.Default.Dashboard, Icons.Default.Analytics, Icons.Default.Inventory)
+    val vm = remember { PosViewModel() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { /* No title */ },
+                navigationIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Terminal,
+                        contentDescription = "Machine Logo",
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                },
+                actions = {
+                    IconButton(onClick = { /* TODO: Handle notifications */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications"
+                        )
+                    }
+                    IconButton(onClick = { /* TODO: Handle settings */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Row(Modifier.fillMaxSize().padding(innerPadding)) {
+            NavigationRail {
+                Spacer(Modifier.weight(1f))
+                items.forEachIndexed { index, item ->
+                    NavigationRailItem(
+                        icon = { Icon(icons[index], contentDescription = item) },
+                        label = { Text(item) },
+                        selected = selected == index,
+                        onClick = { selected = index }
+                    )
+                }
+                Spacer(Modifier.weight(1f))
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+
+            Box(Modifier.weight(1f)) {
+                when (selected) {
+                    0 -> PosMainScreen(vm)
+                    1 -> AnalyticsScreen()
+                    2 -> inventoryScreen()
                 }
             }
         }

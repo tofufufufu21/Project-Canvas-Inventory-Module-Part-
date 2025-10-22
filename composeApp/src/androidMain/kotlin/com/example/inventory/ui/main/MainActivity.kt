@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.inventory.App
 import com.example.inventory.data.model.remote.SupabaseService
 import com.example.inventory.data.model.repository.WarehouseRepository
 import com.example.inventory.ui.main.inkitchen.InKitchenViewModel
@@ -46,10 +47,12 @@ class MainActivity : ComponentActivity() {
                 val warehouseViewModel: WarehouseViewModel = viewModel(factory = warehouseFactory)
                 val inKitchenViewModel: InKitchenViewModel = viewModel(factory = inKitchenFactory)
 
-                WarehouseScreen(
-                    warehouseViewModel = warehouseViewModel,
-                    inKitchenViewModel = inKitchenViewModel
-                )
+                App(inventoryScreen = {
+                    WarehouseScreen(
+                        warehouseViewModel = warehouseViewModel,
+                        inKitchenViewModel = inKitchenViewModel
+                    )
+                })
             }
         }
     }
