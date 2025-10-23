@@ -3,56 +3,53 @@ package com.example.inventory.ui.main
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.inventory.App
+import com.example.inventory.InventoryApp
 import com.example.inventory.data.model.remote.SupabaseService
 import com.example.inventory.data.model.repository.WarehouseRepository
+import com.example.inventory.pos.PosViewModel
 import com.example.inventory.ui.main.inkitchen.InKitchenViewModel
 import com.example.inventory.ui.main.inkitchen.InKitchenViewModelFactory
 import com.example.inventory.ui.main.warehouse.WarehouseScreen
 import com.example.inventory.ui.main.warehouse.WarehouseViewModel
 import com.example.inventory.ui.main.warehouse.WarehouseViewModelFactory
 import com.example.inventory.ui.theme.Theme
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Initialize Supabase client
-        val client = createSupabaseClient(
-            supabaseUrl = "https://eevrlqnhmmcauhyassuz.supabase.co",
-            supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVldnJscW5obW1jYXVoeWFzc3V6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NzkwMjQsImV4cCI6MjA3NTI1NTAyNH0.eDPrdeUeIYysSnAA16J601y5simVmyQg3wm_jBlNunY"
-        ) {
-            install(Postgrest)
-        }
+        // Get the Supabase client from the singleton Application class
+        val supabaseClient = (application as InventoryApp).supabaseClient
 
-        // ✅ Initialize Supabase service and repository
-        val supabaseService = SupabaseService(client)
+        // Initialize Supabase service and repository
+        val supabaseService = SupabaseService(supabaseClient)
         val repository = WarehouseRepository(supabaseService)
 
-        // ✅ Create ViewModel factories
-        val warehouseFactory = WarehouseViewModelFactory(
-            repository = repository,
-            supabaseService = supabaseService
-        )
-
+        // Create ViewModel factories for Android-specific ViewModels
+        val warehouseFactory = WarehouseViewModelFactory(repository, supabaseService)
         val inKitchenFactory = InKitchenViewModelFactory(repository)
 
-        // ✅ Compose UI
         setContent {
             Theme {
+                // Create Android-specific ViewModels using their factories
                 val warehouseViewModel: WarehouseViewModel = viewModel(factory = warehouseFactory)
                 val inKitchenViewModel: InKitchenViewModel = viewModel(factory = inKitchenFactory)
 
-                App(inventoryScreen = {
-                    WarehouseScreen(
-                        warehouseViewModel = warehouseViewModel,
-                        inKitchenViewModel = inKitchenViewModel
-                    )
-                })
+                // Create the common PosViewModel as a plain, remembered class
+                val posViewModel = remember { PosViewModel(repository) }
+
+                App(
+                    posViewModel = posViewModel,
+                    inventoryScreen = {
+                        WarehouseScreen(
+                            warehouseViewModel = warehouseViewModel,
+                            inKitchenViewModel = inKitchenViewModel
+                        )
+                    }
+                )
             }
         }
     }

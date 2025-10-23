@@ -5,34 +5,52 @@ import android.net.Uri
 import com.example.inventory.data.model.InKitchenItem
 import com.example.inventory.data.model.WarehouseItem
 import com.example.inventory.data.model.remote.SupabaseService
+import com.example.inventory.pos.Category
+import com.example.inventory.pos.Product
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+// This class implements the ProductsRepository interface for the PosViewModel.
 class WarehouseRepository(
     private val supabaseService: SupabaseService
-) {
+) : ProductsRepository {
 
-    // ✅ Fetch all warehouse items
+    // This function fulfills the contract from the commonMain ProductsRepository interface
+    override suspend fun getProductsForPOS(): List<Product> = withContext(Dispatchers.IO) {
+        try {
+            supabaseService.fetchWarehouseItems().map { warehouseItem ->
+                Product(
+                    id = warehouseItem.id.toString(),
+                    name = warehouseItem.product_name,
+                    price = 0.0, // IMPORTANT: Add a 'price' column to your Supabase table
+                    category = try { Category.valueOf(warehouseItem.category_type) } catch (e: Exception) { Category.Snacks },
+                    stock = warehouseItem.quantity.toInt()
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // This function is for the Inventory screen (and other internal uses)
     suspend fun fetchWarehouseItems(): List<WarehouseItem> = withContext(Dispatchers.IO) {
         supabaseService.fetchWarehouseItems()
     }
 
-    // ✅ Fetch all in-kitchen items
+    // These are other functions specific to the Android implementation
     suspend fun fetchInKitchenItems(): List<InKitchenItem> = withContext(Dispatchers.IO) {
         supabaseService.fetchInKitchenItems()
     }
 
-    // ✅ Add new warehouse item
     suspend fun addWarehouseItem(item: WarehouseItem) = withContext(Dispatchers.IO) {
         supabaseService.addWarehouseItem(item)
     }
 
-    // ✅ Delete warehouse item by ID
     suspend fun deleteWarehouseItem(id: Long): Boolean = withContext(Dispatchers.IO) {
         supabaseService.deleteWarehouseItem(id)
     }
 
-    // ✅ Upload image to Supabase Storage
     suspend fun uploadImage(
         context: Context,
         imageUri: Uri,
@@ -41,7 +59,6 @@ class WarehouseRepository(
         supabaseService.uploadImage(context, imageUri, bucket)
     }
 
-    // ✅ Transfer item from warehouse → in_kitchen
     suspend fun transferToInKitchenSingle(
         warehouseItem: WarehouseItem,
         transferQuantity: Double,

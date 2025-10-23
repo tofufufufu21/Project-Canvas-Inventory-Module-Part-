@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio // <-- Fix
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,18 +21,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults // <-- Fix
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -48,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun PosMainScreen(vm: PosViewModel) {
@@ -62,7 +69,7 @@ fun PosMainScreen(vm: PosViewModel) {
 
             SearchBar(query = searchQuery, onQueryChange = vm::setSearchQuery)
             Spacer(Modifier.height(8.dp))
-            PlatformDateDisplay() // Use the platform-specific date display
+            DateDisplay() // Reintroduced DateDisplay directly
             Spacer(Modifier.height(8.dp))
             CategoryTabs(category = category, onSelect = vm::selectCategory)
             Spacer(Modifier.height(8.dp))
@@ -151,7 +158,7 @@ fun PaymentPanel(vm: PosViewModel, isVisible: Boolean) {
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
                     .fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
+                color = Color.White.copy(alpha = 0.7f), // Semi-transparent white background
                 shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
                 shadowElevation = 8.dp
             ) {
@@ -169,15 +176,15 @@ private fun PaymentPanelContent(vm: PosViewModel) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = vm::goBackToOrder) {
-                Text("<") // Placeholder for ArrowBack icon
+                Text("<", color = Color.Black) // Placeholder for ArrowBack icon, text color for readability
             }
             Spacer(Modifier.width(8.dp))
-            Text("Payment", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Payment", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         }
         Spacer(Modifier.height(16.dp))
 
-        Text("Total Amount Due", fontSize = 18.sp)
-        Text("₱${total.toInt()}", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Text("Total Amount Due", fontSize = 18.sp, color = Color.Black)
+        Text("₱${total.toInt()}", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.Black)
         Spacer(Modifier.height(16.dp))
 
         PaymentTabs(payment.method) { vm.setPaymentMethod(it) }
@@ -198,6 +205,20 @@ private fun PaymentPanelContent(vm: PosViewModel) {
             Text("Finalize & Send to Kitchen")
         }
     }
+}
+
+// Reintroduced DateDisplay directly into ui_pos.kt
+@Composable
+fun DateDisplay() {
+    val currentDate = Date()
+    val formatter = SimpleDateFormat("EEEE, d MMM yyyy", Locale.ENGLISH)
+    val formattedDate = formatter.format(currentDate)
+    Text(
+        text = formattedDate,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 // region Reusable Components
@@ -326,9 +347,9 @@ fun CartList(cart: List<CartItem>, onInc: (String) -> Unit, onDec: (String) -> U
 @Composable
 fun OrderNotes(notes: String, onNotesChange: (String) -> Unit) {
     OutlinedTextField(
-        value = notes, 
-        onValueChange = onNotesChange, 
-        label = { Text("Order Notes...", color = Color.White) }, 
+        value = notes,
+        onValueChange = onNotesChange,
+        label = { Text("Order Notes...", color = Color.White) },
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
     )
 }
@@ -374,15 +395,25 @@ fun PaymentTabs(method: PaymentMethod, onSelect: (PaymentMethod) -> Unit) {
 @Composable
 fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
     Column {
-        Text("Enter Amount Tendered")
+        Text("Enter Amount Tendered", color = Color.Black) // Text color for readability
         Spacer(Modifier.height(8.dp))
         val quick = listOf(50, 100, 200, 500, 1000)
-        Row(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp) // Consistent spacing
+        ) {
             quick.forEach { amt ->
                 OutlinedButton(
                     onClick = { onTendered(amt.toDouble()) },
-                    modifier = Modifier.weight(1f).padding(4.dp)
-                ) { Text("₱$amt") }
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f) // Make it square
+                        .padding(4.dp), // Uniform padding
+                    shape = CircleShape, // Make it circular
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black) // Ensure text is black
+                ) {
+                    Text("₱$amt", color = Color.Black) // Explicit text color
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -393,18 +424,19 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
                 manual = it
                 it.toDoubleOrNull()?.let(onTendered)
             },
-            label = { Text("Keypad") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text("Keypad", color = Color.Black) }, // Text color for readability
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Black, unfocusedTextColor = Color.Black) // Ensure text is black
         )
         Spacer(Modifier.height(8.dp))
-        Text("Change Due: ₱${payment.cash.change.toInt()}")
+        Text("Change Due: ₱${payment.cash.change.toInt()}", color = Color.Black) // Text color for readability
     }
 }
 
 @Composable
 fun OnlinePaymentArea() {
     Column {
-        Text("Scan customer QR or tap to confirm online payment.")
+        Text("Scan customer QR or tap to confirm online payment.", color = Color.Black) // Text color for readability
         Spacer(Modifier.height(8.dp))
         Button(onClick = { /* Assuming success externally */ }, enabled = false) {
             Text("Awaiting QR Confirmation")

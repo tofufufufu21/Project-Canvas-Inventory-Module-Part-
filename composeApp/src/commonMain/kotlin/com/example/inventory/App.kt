@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
@@ -29,11 +30,15 @@ import com.example.inventory.pos.PosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun App(inventoryScreen: @Composable () -> Unit) {
+fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
     var selected by remember { mutableStateOf(0) }
-    val items = listOf("Dashboard", "Analytics", "Inventory")
-    val icons: List<ImageVector> = listOf(Icons.Default.Dashboard, Icons.Default.Analytics, Icons.Default.Inventory)
-    val vm = remember { PosViewModel() }
+    val items = listOf("Dashboard", "Analytics", "Inventory", "Menu Config")
+    val icons: List<ImageVector> = listOf(
+        Icons.Default.Dashboard, 
+        Icons.Default.Analytics, 
+        Icons.Default.Inventory, 
+        Icons.Default.MenuBook
+    )
 
     Scaffold(
         topBar = {
@@ -79,9 +84,10 @@ fun App(inventoryScreen: @Composable () -> Unit) {
 
             Box(Modifier.weight(1f)) {
                 when (selected) {
-                    0 -> PosMainScreen(vm)
-                    1 -> AnalyticsScreen()
+                    0 -> PosMainScreen(posViewModel)
+                    1 -> AnalyticsScreenContent()
                     2 -> inventoryScreen()
+                    3 -> MenuConfigScreen()
                 }
             }
         }
