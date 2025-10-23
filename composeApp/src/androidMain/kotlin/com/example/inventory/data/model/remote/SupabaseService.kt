@@ -21,17 +21,39 @@ class SupabaseService(private val client: SupabaseClient) {
 
     // ✅ Fetch all warehouse items
     suspend fun fetchWarehouseItems(): List<WarehouseItem> = withContext(Dispatchers.IO) {
-        client.from("warehouse_inventory").select().decodeList<WarehouseItem>()
+        try {
+            val items = client.from("warehouse_inventory").select().decodeList<WarehouseItem>()
+            println("SupabaseService: Fetched warehouse items: ${items.size}")
+            items
+        } catch (e: Exception) {
+            println("SupabaseService: Error fetching warehouse items: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     // ✅ Fetch all in-kitchen items
     suspend fun fetchInKitchenItems(): List<InKitchenItem> = withContext(Dispatchers.IO) {
-        client.from("in_kitchen").select().decodeList<InKitchenItem>()
+        try {
+            val items = client.from("in_kitchen").select().decodeList<InKitchenItem>()
+            println("SupabaseService: Fetched in-kitchen items: ${items.size}")
+            items
+        } catch (e: Exception) {
+            println("SupabaseService: Error fetching in-kitchen items: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     // ✅ Add a new warehouse item
     suspend fun addWarehouseItem(item: WarehouseItem) = withContext(Dispatchers.IO) {
-        client.from("warehouse_inventory").insert(item)
+        try {
+            client.from("warehouse_inventory").insert(item)
+            println("SupabaseService: Added warehouse item: ${item.product_name}")
+        } catch (e: Exception) {
+            println("SupabaseService: Error adding warehouse item: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     // ✅ Delete warehouse item by ID
@@ -40,8 +62,10 @@ class SupabaseService(private val client: SupabaseClient) {
             client.from("warehouse_inventory").delete {
                 filter { eq("id", id) }
             }
+            println("SupabaseService: Deleted warehouse item with ID: $id")
             true
         } catch (e: Exception) {
+            println("SupabaseService: Error deleting warehouse item: ${e.message}")
             e.printStackTrace()
             false
         }
@@ -65,8 +89,11 @@ class SupabaseService(private val client: SupabaseClient) {
                 contentType = ContentType.Image.JPEG
             }
 
-            bucketRef.publicUrl(fileName)
+            val publicUrl = bucketRef.publicUrl(fileName)
+            println("SupabaseService: Uploaded image to: $publicUrl")
+            publicUrl
         } catch (e: Exception) {
+            println("SupabaseService: Error uploading image: ${e.message}")
             e.printStackTrace()
             null
         }
@@ -123,6 +150,7 @@ class SupabaseService(private val client: SupabaseClient) {
 
             // ✅ Insert into in_kitchen table
             client.from("in_kitchen").insert(newInKitchenItem)
+            println("SupabaseService: Transferred to in_kitchen: ${newInKitchenItem.product_name}")
 
             // ✅ Insert into transfer_history table
             val history = TransferHistory(
@@ -138,16 +166,19 @@ class SupabaseService(private val client: SupabaseClient) {
                 transferred_at = Clock.System.now().toString()
             )
             client.from("transfer_history").insert(history)
+            println("SupabaseService: Recorded transfer history for: ${history.product_name}")
 
             // ✅ Delete the original warehouse item
             warehouseItem.id?.let { safeId ->
                 client.from("warehouse_inventory").delete {
                     filter { eq("id", safeId as Any) }
                 }
+                println("SupabaseService: Deleted original warehouse item with ID: $safeId")
             }
 
             true
         } catch (e: Exception) {
+            println("SupabaseService: Error transferring to in_kitchen: ${e.message}")
             e.printStackTrace()
             false
         }
