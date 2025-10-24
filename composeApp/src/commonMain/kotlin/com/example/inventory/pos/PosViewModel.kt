@@ -20,8 +20,8 @@ class PosViewModel(private val repository: ProductsRepository) {
     // ---------- Cart & Order Data ----------
     private val _cart = MutableStateFlow<List<CartItem>>(emptyList())
     val cart: StateFlow<List<CartItem>> = _cart.asStateFlow()
-    private val _selectedCategory = MutableStateFlow<Category?>(null)
-    val selectedCategory: StateFlow<Category?> = _selectedCategory.asStateFlow()
+    private val _selectedCategory = MutableStateFlow<PosCategory?>(null) // Changed Category to PosCategory
+    val selectedCategory: StateFlow<PosCategory?> = _selectedCategory.asStateFlow() // Changed Category to PosCategory
     private val _orderId = MutableStateFlow("#0001")
     val orderId: StateFlow<String> = _orderId.asStateFlow()
     private val _orderType = MutableStateFlow(OrderType.DineIn)
@@ -63,7 +63,7 @@ class PosViewModel(private val repository: ProductsRepository) {
         filterProducts()
     }
 
-    fun selectCategory(category: Category?) {
+    fun selectCategory(category: PosCategory?) { // Changed Category to PosCategory
         _selectedCategory.value = category
         filterProducts()
     }

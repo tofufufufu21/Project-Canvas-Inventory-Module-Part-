@@ -128,61 +128,35 @@ kotlin {
         }
 
 
-
         commonMain.dependencies {
-
             implementation(compose.runtime)
-
             implementation(compose.foundation)
-
             implementation(compose.material3)
-
             implementation(compose.ui)
-
             implementation(compose.components.resources)
-
             implementation(compose.components.uiToolingPreview)
-
+            implementation(compose.materialIconsExtended)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
-
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
-
-
-// Coroutines
-
+            // Coroutines
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
-
-
-// Supabase - ADDED HERE IN COMMONMAIN
-
+            // Supabase
             implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.2")
-
             implementation("io.github.jan-tennert.supabase:storage-kt:3.0.2")
-
             implementation("io.github.jan-tennert.supabase:realtime-kt:3.0.2")
 
-
-
-// Ktor Core
-
+            // Ktor Core
             implementation("io.ktor:ktor-client-core:3.0.1")
-
             implementation("io.ktor:ktor-client-content-negotiation:3.0.1")
-
             implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.1")
 
-
-
-// Kotlinx Serialization
-
+            // Kotlinx Serialization
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
 
-
             implementation("io.coil-kt:coil-compose:2.5.0")
-
         }
 
 

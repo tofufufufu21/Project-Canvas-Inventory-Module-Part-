@@ -5,7 +5,7 @@ import android.net.Uri
 import com.example.inventory.data.model.InKitchenItem
 import com.example.inventory.data.model.WarehouseItem
 import com.example.inventory.data.model.remote.SupabaseService
-import com.example.inventory.pos.Category
+import com.example.inventory.pos.PosCategory // Changed import to PosCategory
 import com.example.inventory.pos.Product
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +23,7 @@ class WarehouseRepository(
                     id = warehouseItem.id.toString(),
                     name = warehouseItem.product_name,
                     price = 0.0, // IMPORTANT: Add a 'price' column to your Supabase table
-                    category = try { Category.valueOf(warehouseItem.category_type) } catch (e: Exception) { Category.Snacks },
+                    category = try { PosCategory.valueOf(warehouseItem.category_type) } catch (e: Exception) { PosCategory.Snacks }, // Changed usage to PosCategory
                     stock = warehouseItem.quantity.toInt()
                 )
             }

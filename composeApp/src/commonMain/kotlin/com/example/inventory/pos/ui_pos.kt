@@ -229,8 +229,8 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun CategoryTabs(category: Category?, onSelect: (Category?) -> Unit) {
-    val cats = Category.entries
+fun CategoryTabs(category: PosCategory?, onSelect: (PosCategory?) -> Unit) {
+    val cats = PosCategory.entries
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
         val allSelected = category == null
         AssistChip(
@@ -298,17 +298,11 @@ fun OrderHeader(orderId: String, online: Boolean, orderType: OrderType, onOrderT
             Text(text = if (online) "Online" else "Offline (queued)", color = statusColor, fontSize = 14.sp)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Order Type:", color = Color.White)
+            RadioButton(selected = orderType == OrderType.DineIn, onClick = { onOrderTypeChange(OrderType.DineIn) })
+            Text("Dine In", color = Color.White)
             Spacer(Modifier.width(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = orderType == OrderType.DineIn, onClick = { onOrderTypeChange(OrderType.DineIn) })
-                Text("Dine In", color = Color.White)
-            }
-            Spacer(Modifier.width(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = orderType == OrderType.TakeOut, onClick = { onOrderTypeChange(OrderType.TakeOut) })
-                Text("Take Out", color = Color.White)
-            }
+            RadioButton(selected = orderType == OrderType.TakeOut, onClick = { onOrderTypeChange(OrderType.TakeOut) })
+            Text("Take Out", color = Color.White)
         }
     }
     HorizontalDivider(Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.2f))
