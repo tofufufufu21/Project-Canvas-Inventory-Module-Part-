@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio // <-- Fix
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,6 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -389,43 +394,68 @@ fun PaymentTabs(method: PaymentMethod, onSelect: (PaymentMethod) -> Unit) {
 @Composable
 fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
     Column {
-        Text("Enter Amount Tendered", color = Color.Black) // Text color for readability
+        Text("Enter Amount Tendered", color = Color.Black)
         Spacer(Modifier.height(8.dp))
+
         val quick = listOf(50, 100, 200, 500, 1000)
+
+        // horizontal scroll row so circles keep a fixed size and don't stretch
+        val scrollState = rememberScrollState()
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp) // Consistent spacing
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             quick.forEach { amt ->
                 OutlinedButton(
                     onClick = { onTendered(amt.toDouble()) },
                     modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1f) // Make it square
-                        .padding(4.dp), // Uniform padding
-                    shape = CircleShape, // Make it circular
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black) // Ensure text is black
+                        .padding(4.dp)
+                        .size(72.dp), // fixed diameter -> perfect circle
+                    shape = CircleShape,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
+                    contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("₱$amt", color = Color.Black) // Explicit text color
+                    Text(
+                        text = "₱$amt",
+                        color = Color.Black,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+
+        Spacer(Modifier.height(16.dp))
+
         var manual by remember { mutableStateOf("") }
+
         OutlinedTextField(
             value = manual,
             onValueChange = {
                 manual = it
                 it.toDoubleOrNull()?.let(onTendered)
             },
-            label = { Text("Keypad", color = Color.Black) }, // Text color for readability
+            label = { Text("Keypad", color = Color.Black) },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Black, unfocusedTextColor = Color.Black) // Ensure text is black
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
+
         Spacer(Modifier.height(8.dp))
-        Text("Change Due: ₱${payment.cash.change.toInt()}", color = Color.Black) // Text color for readability
+
+        Text(
+            text = "Change Due: ₱${payment.cash.change.toInt()}",
+            color = Color.Black,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
+
 
 @Composable
 fun OnlinePaymentArea() {
