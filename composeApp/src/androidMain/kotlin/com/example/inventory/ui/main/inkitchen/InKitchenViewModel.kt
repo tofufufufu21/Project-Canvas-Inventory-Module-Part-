@@ -2,8 +2,8 @@ package com.example.inventory.ui.main.inkitchen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.inventory.data.model.InKitchenItem
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.InKitchenItem
+import com.example.inventory.model.WarehouseItem
 import com.example.inventory.data.model.repository.WarehouseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

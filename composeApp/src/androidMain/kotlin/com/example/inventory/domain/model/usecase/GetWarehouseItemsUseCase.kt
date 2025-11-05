@@ -1,7 +1,7 @@
 package com.example.inventory.domain.model.usecase
 
 import com.example.inventory.data.model.repository.WarehouseRepository
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.WarehouseItem
 
 class GetWarehouseItemsUseCase(
     private val repository: WarehouseRepository

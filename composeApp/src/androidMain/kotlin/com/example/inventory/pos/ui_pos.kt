@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio // <-- Fix
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults // <-- Fix
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -52,14 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextAlign
+import com.example.inventory.model.ProductDTO // This import is still needed as ProductDTO is in a different package
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.inventory.pos.CartItem
+import com.example.inventory.pos.PaymentState
 
 @Composable
 fun PosMainScreen(vm: PosViewModel) {
@@ -74,9 +74,10 @@ fun PosMainScreen(vm: PosViewModel) {
 
             SearchBar(query = searchQuery, onQueryChange = vm::setSearchQuery)
             Spacer(Modifier.height(8.dp))
-            DateDisplay() // Reintroduced DateDisplay directly
+            DateDisplay()
             Spacer(Modifier.height(8.dp))
-            CategoryTabs(category = category, onSelect = vm::selectCategory)
+            // <-- Pass products to CategoryTabs (fixed)
+            CategoryTabs(category = category, onSelect = vm::selectCategory, products = products)
             Spacer(Modifier.height(8.dp))
             ProductGrid(products = products, onTap = { vm.addProduct(it) })
         }
@@ -92,7 +93,7 @@ fun PosMainScreen(vm: PosViewModel) {
     val insufficient by vm.insufficientModal.collectAsState()
     if (insufficient != null) {
         InsufficientStockDialog(
-            productName = insufficient!!,
+            productName = insufficient!!.productName,
             onRestock = { vm.restockAndAdd(insufficient!!) },
             onCancel = { vm.dismissModal() }
         )
@@ -114,7 +115,7 @@ fun OrderPanel(vm: PosViewModel, modifier: Modifier = Modifier) {
             .padding(16.dp)
     ) {
         OrderHeader(
-            orderId = orderId,
+            orderId = orderId.toString(), // Convert Long to String
             online = online,
             orderType = orderType,
             onOrderTypeChange = vm::setOrderType
@@ -234,24 +235,28 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun CategoryTabs(category: PosCategory?, onSelect: (PosCategory?) -> Unit) {
-    val cats = PosCategory.entries
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
-        val allSelected = category == null
-        AssistChip(
-            onClick = { onSelect(null) },
-            label = { Text("All") },
-            modifier = Modifier.padding(end = 8.dp),
-            colors = AssistChipDefaults.assistChipColors(
-                containerColor = if (allSelected) Color(0xFF2D6A4F) else Color(0xFFE9ECEF),
-                labelColor = if (allSelected) Color.White else Color.Black
-            )
-        )
-        cats.forEach { c ->
-            val selected = c == category
+fun CategoryTabs(
+    category: String,                 // currently selected category name
+    onSelect: (String) -> Unit,       // called when user taps a chip
+    products: List<ProductDTO>        // pass vm.products.collectAsState().value
+) {
+    // Build category list dynamically from product data
+    val categories = remember(products) {
+        val names = products.mapNotNull { it.categoryName }.distinct().sorted()
+        listOf("All") + names
+    }
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(bottom = 8.dp)
+    ) {
+        categories.forEach { cat ->
+            val selected = cat == category || (cat == "All" && category.isBlank())
             AssistChip(
-                onClick = { onSelect(c) },
-                label = { Text(c.name) },
+                onClick = { onSelect(if (cat == "All") "" else cat) },
+                label = { Text(cat) },
                 modifier = Modifier.padding(end = 8.dp),
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = if (selected) Color(0xFF2D6A4F) else Color(0xFFE9ECEF),
@@ -262,8 +267,9 @@ fun CategoryTabs(category: PosCategory?, onSelect: (PosCategory?) -> Unit) {
     }
 }
 
+
 @Composable
-fun ProductGrid(products: List<Product>, onTap: (Product) -> Unit) {
+fun ProductGrid(products: List<ProductDTO>, onTap: (ProductDTO) -> Unit) {
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         products.chunked(3).forEach { row ->
@@ -279,14 +285,14 @@ fun ProductGrid(products: List<Product>, onTap: (Product) -> Unit) {
 }
 
 @Composable
-fun ProductCard(product: Product, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun ProductCard(product: ProductDTO, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(Modifier.padding(12.dp)) {
             Box(Modifier.height(90.dp).fillMaxWidth().background(Color(0xFFDDE3E9), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-                Text(product.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(product.productName, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
             Text("₱${product.price.toInt()}", fontSize = 14.sp, color = Color(0xFF495057))
@@ -314,7 +320,7 @@ fun OrderHeader(orderId: String, online: Boolean, orderType: OrderType, onOrderT
 }
 
 @Composable
-fun CartList(cart: List<CartItem>, onInc: (String) -> Unit, onDec: (String) -> Unit, onRemove: (String) -> Unit, modifier: Modifier = Modifier) {
+fun CartList(cart: List<CartItem>, onInc: (CartItem) -> Unit, onDec: (CartItem) -> Unit, onRemove: (CartItem) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier) {
         if (cart.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -325,15 +331,15 @@ fun CartList(cart: List<CartItem>, onInc: (String) -> Unit, onDec: (String) -> U
                 cart.forEach { item ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.product.name, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                            Text("₱${item.product.price.toInt()} x ${item.qty}", color = Color(0xFFCCCCCC))
+                            Text(item.product.productName, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.White)
+                            Text("₱${item.product.price.toInt()} x ${item.quantity}", color = Color(0xFFCCCCCC))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { onDec(item.product.id) }) { Text("-", color = Color.White, fontSize = 22.sp) }
-                            Text("${item.qty}", Modifier.padding(horizontal = 8.dp), color = Color.White, fontSize = 16.sp)
-                            IconButton(onClick = { onInc(item.product.id) }) { Text("+", color = Color.White, fontSize = 22.sp) }
+                            IconButton(onClick = { onDec(item) }) { Text("-", color = Color.White, fontSize = 22.sp) }
+                            Text("${item.quantity}", Modifier.padding(horizontal = 8.dp), color = Color.White, fontSize = 16.sp)
+                            IconButton(onClick = { onInc(item) }) { Text("+", color = Color.White, fontSize = 22.sp) }
                             Spacer(Modifier.width(8.dp))
-                            IconButton(onClick = { onRemove(item.product.id) }) { Text("X", color = Color.White) } // Placeholder for Delete Icon
+                            IconButton(onClick = { onRemove(item) }) { Text("X", color = Color.White) } // Placeholder for Delete Icon
                         }
                     }
                     HorizontalDivider(color = Color.White.copy(alpha = 0.2f))
@@ -385,7 +391,10 @@ fun InsufficientStockDialog(productName: String, onRestock: () -> Unit, onCancel
 
 @Composable
 fun PaymentTabs(method: PaymentMethod, onSelect: (PaymentMethod) -> Unit) {
-    TabRow(selectedTabIndex = if (method == PaymentMethod.Cash) 0 else 1) {
+    TabRow(selectedTabIndex = when (method) {
+        PaymentMethod.Cash -> 0
+        PaymentMethod.OnlineQR -> 1
+    }) {
         Tab(selected = method == PaymentMethod.Cash, onClick = { onSelect(PaymentMethod.Cash) }, text = { Text("Cash") })
         Tab(selected = method == PaymentMethod.OnlineQR, onClick = { onSelect(PaymentMethod.OnlineQR) }, text = { Text("Online/QR") })
     }
@@ -398,9 +407,9 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
         Spacer(Modifier.height(8.dp))
 
         val quick = listOf(50, 100, 200, 500, 1000)
-
-        // horizontal scroll row so circles keep a fixed size and don't stretch
         val scrollState = rememberScrollState()
+
+        // Quick-cash buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -412,7 +421,7 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
                     onClick = { onTendered(amt.toDouble()) },
                     modifier = Modifier
                         .padding(4.dp)
-                        .size(72.dp), // fixed diameter -> perfect circle
+                        .size(72.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
                     contentPadding = PaddingValues(0.dp)
@@ -432,6 +441,7 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
 
         var manual by remember { mutableStateOf("") }
 
+        // Manual tender input
         OutlinedTextField(
             value = manual,
             onValueChange = {
@@ -448,13 +458,15 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
 
         Spacer(Modifier.height(8.dp))
 
+        // Change display
         Text(
-            text = "Change Due: ₱${payment.cash.change.toInt()}",
+            text = "Change Due: ₱${payment.change.toInt()}",
             color = Color.Black,
             style = MaterialTheme.typography.bodyMedium
         )
     }
 }
+
 
 
 @Composable

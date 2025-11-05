@@ -1,6 +1,6 @@
-package com.example.inventory.data.model.repository
+package com.example.inventory.model.repository
 
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.WarehouseItem
 
 /**
  * Defines the contract for a repository that can fetch warehouse items.

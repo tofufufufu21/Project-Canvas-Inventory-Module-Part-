@@ -1,6 +1,6 @@
 package com.example.inventory.domain.model.usecase
 
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.WarehouseItem
 import com.example.inventory.data.model.repository.WarehouseRepository
 
 /**

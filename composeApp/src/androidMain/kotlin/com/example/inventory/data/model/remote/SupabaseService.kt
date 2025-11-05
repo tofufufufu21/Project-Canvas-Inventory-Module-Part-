@@ -2,9 +2,9 @@ package com.example.inventory.data.model.remote
 
 import android.content.Context
 import android.net.Uri
-import com.example.inventory.data.model.InKitchenItem
-import com.example.inventory.data.model.TransferHistory
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.InKitchenItem
+import com.example.inventory.model.TransferHistory
+import com.example.inventory.model.WarehouseItem
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 
-class SupabaseService(private val client: SupabaseClient) {
+class SupabaseService(internal val client: SupabaseClient) {
 
     // ✅ Fetch all warehouse items
     suspend fun fetchWarehouseItems(): List<WarehouseItem> = withContext(Dispatchers.IO) {

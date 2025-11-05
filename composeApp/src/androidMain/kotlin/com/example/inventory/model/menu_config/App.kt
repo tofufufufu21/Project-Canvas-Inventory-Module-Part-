@@ -1,4 +1,4 @@
-package com.example.inventory
+package com.example.inventory.model.menu_config
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -22,12 +22,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.inventory.pos.PosMainScreen
 import com.example.inventory.pos.PosViewModel
-// Removed: import com.example.inventory.Category // Added: Import the Category data class
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,48 +41,8 @@ fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
         Icons.AutoMirrored.Filled.MenuBook
     )
 
-    val dummyAddProductViewModel = remember {
-        object : AddProductViewModel {
-            override var currentStep: Int by mutableStateOf(1)
-            override var useExistingCategory: Boolean by mutableStateOf(false)
-            override var newCategoryName: String by mutableStateOf("")
-            override var productName: String by mutableStateOf("")
-            override var productPrice: String by mutableStateOf("")
-            override var productVisibility: Boolean by mutableStateOf(true)
-            override var hasVariants: Boolean by mutableStateOf(false)
-            override var newVariantName: String by mutableStateOf("")
-            override var newVariantExtraPrice: String by mutableStateOf("")
-            override var variants: List<VariantData> by mutableStateOf(emptyList())
-            override var trackStock: Boolean by mutableStateOf(false)
-            override var newIngredientName: String by mutableStateOf("")
-            override var newIngredientAmount: String by mutableStateOf("")
-            override var selectedIngredients: List<IngredientData> by mutableStateOf(emptyList())
-            override var isDineInAvailable: Boolean by mutableStateOf(false)
-            override var isTakeOutAvailable: Boolean by mutableStateOf(false)
-            override var productImageUri: String? by mutableStateOf(null)
-            override var selectedExistingCategory: Category? by mutableStateOf(null)
+    val addProductViewModel: AddProductViewModel = remember { AddProductViewModelImpl() }
 
-            override fun nextStep() { currentStep += 1 }
-            override fun previousStep() { if (currentStep > 0) currentStep -= 1 }
-            override fun addVariant() {
-                val newList = variants + VariantData(id = "v${variants.size + 1}", name = newVariantName, extraPrice = newVariantExtraPrice.toDoubleOrNull() ?: 0.0)
-                variants = newList
-            }
-            override fun removeVariant(variant: VariantData) {
-                variants = variants.filterNot { it == variant }
-            }
-            override fun updateVariantPrice(variant: VariantData, value: String) {
-                variants = variants.map { if (it == variant) it.copy(extraPrice = value.toDoubleOrNull() ?: 0.0) else it }
-            }
-            override fun addIngredient() {
-                val newList = selectedIngredients + IngredientData(id = "i${selectedIngredients.size + 1}", name = newIngredientName, amount = newIngredientAmount.toDoubleOrNull() ?: 0.0)
-                selectedIngredients = newList
-            }
-            override fun removeIngredient(ingredient: IngredientData) {
-                selectedIngredients = selectedIngredients.filterNot { it == ingredient }
-            }
-        }
-    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -128,9 +88,11 @@ fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
             Box(Modifier.weight(1f)) {
                 when (selected) {
                     0 -> PosMainScreen(posViewModel)
-                    1 -> AnalyticsScreenContent()
+                    1 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Analytics Screen")
+                         }
                     2 -> inventoryScreen()
-                    3 -> MenuConfigScreen(dummyAddProductViewModel)
+                    3 -> MenuConfigScreen(addProductViewModel)
                 }
             }
         }

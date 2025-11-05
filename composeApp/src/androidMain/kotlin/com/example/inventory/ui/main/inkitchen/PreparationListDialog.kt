@@ -13,7 +13,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.Color
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.WarehouseItem
 import com.example.inventory.ui.main.warehouse.WarehouseViewModel
 import kotlinx.coroutines.launch
 

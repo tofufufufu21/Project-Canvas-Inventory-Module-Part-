@@ -2,7 +2,7 @@ package com.example.inventory.ui.main.warehouse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.inventory.data.model.WarehouseItem
+import com.example.inventory.model.WarehouseItem
 import com.example.inventory.data.model.remote.SupabaseService
 import com.example.inventory.data.model.repository.WarehouseRepository
 import kotlinx.coroutines.flow.MutableStateFlow

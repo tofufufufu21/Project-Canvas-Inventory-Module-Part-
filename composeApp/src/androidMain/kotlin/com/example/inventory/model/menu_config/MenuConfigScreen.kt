@@ -1,4 +1,4 @@
-package com.example.inventory
+package com.example.inventory.model.menu_config
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
