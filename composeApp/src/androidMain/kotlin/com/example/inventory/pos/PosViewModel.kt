@@ -47,6 +47,9 @@ class PosViewModel(private val repo: InventoryRepositoryImpl) {
 
     private val _payment = MutableStateFlow(PaymentState())
     val payment: StateFlow<PaymentState> = _payment.asStateFlow()
+    fun reloadProducts() {
+        loadProducts() // Reuse your existing method that fetches products
+    }
 
     init {
         loadProducts()
@@ -55,8 +58,12 @@ class PosViewModel(private val repo: InventoryRepositoryImpl) {
     fun loadProducts() {
         scope.launch {
             _products.value = try {
-                repo.getProductsForPOS()
+                val fetched = repo.getProductsForPOS()
+                println("✅ Loaded products: ${fetched.size}")
+                fetched.forEach { println("🧾 $it") }
+                fetched
             } catch (e: Exception) {
+                e.printStackTrace()
                 emptyList()
             }
         }
@@ -81,7 +88,7 @@ class PosViewModel(private val repo: InventoryRepositoryImpl) {
                     false
                 }
                 if (hasStock) {
-                    _cart.value = _cart.value + CartItem(product, 0)
+                    _cart.value = _cart.value + CartItem(product, 1)
                 } else {
                     _insufficientModal.value = product
                 }
@@ -151,24 +158,54 @@ class PosViewModel(private val repo: InventoryRepositoryImpl) {
 
     fun finalizeAndSendToKitchen(onSuccess: () -> Unit) {
         scope.launch {
-            val orderId = System.currentTimeMillis()
-            _orderId.value = orderId
+            try {
+                println("🟢 Finalize button clicked!") // 👈 Add this line
+                val orderId = System.currentTimeMillis()
+                _orderId.value = orderId
 
-            _cart.value.forEach { item ->
-                repo.reserveIngredientsForOrder(orderId, item.product.variantId, item.quantity)
+                _cart.value.forEach { item ->
+                    println("📦 Reserving for ${item.product.productName}, Variant ID: ${item.product.variantId}")
+                    repo.reserveIngredientsForOrder(orderId, item.product.variantId, item.quantity)
+                }
+
+                println("📊 Deducting reserved items...")
+                repo.finalizeOrderDeduction(orderId)
+
+                println("✅ Finalize completed successfully")
+
+                _cart.value = emptyList()
+                _orderNotes.value = ""
+                _showPayment.value = false
+                _payment.value = PaymentState()
+                _selectedCategory.value = "All"
+                _searchQuery.value = ""
+                _insufficientModal.value = null
+
+                onSuccess()
+            } catch (e: Exception) {
+                println("❌ Error in finalize: ${e.message}")
+                e.printStackTrace()
             }
+        }
+    }
 
-            repo.finalizeOrderDeduction(orderId)
 
-            _cart.value = emptyList()
-            _orderNotes.value = ""
-            _showPayment.value = false
-            _payment.value = PaymentState()
-            _selectedCategory.value = "All"
-            _searchQuery.value = ""
-            _insufficientModal.value = null
 
-            onSuccess()
+    data class GroupedProduct(
+        val productName: String,
+        val basePrice: Double,
+        val variants: List<ProductDTO>
+    )
+
+    // ✅ Function to group variants by product name
+    fun getGroupedProducts(): List<GroupedProduct> {
+        val grouped = _products.value.groupBy { it.productName }
+        return grouped.map { (name, variants) ->
+            GroupedProduct(
+                productName = name,
+                basePrice = variants.minOfOrNull { it.price } ?: 0.0,
+                variants = variants
+            )
         }
     }
 }

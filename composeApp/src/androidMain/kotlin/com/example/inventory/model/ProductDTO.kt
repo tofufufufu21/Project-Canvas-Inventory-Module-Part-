@@ -1,15 +1,16 @@
 package com.example.inventory.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ProductDTO(
-    val variantId: Long,          // ✅ used in PosViewModel
-    val productId: Long,
-    val productName: String,
-    val variantName: String = "",
-    val price: Double,
-    val categoryId: Long?,
-    val imageUrl: String? = null,
-    val categoryName: String? = null
+    @SerialName("variantid") val variantId: Long,
+    @SerialName("productid") val productId: Long,
+    @SerialName("productname") val productName: String,
+    @SerialName("variantname") val variantName: String,
+    @SerialName("price") val price: Double,
+    @SerialName("category_id") val categoryId: Long?,
+    @SerialName("imageurl") val imageUrl: String? = null,
+    @SerialName("categoryname") val categoryName: String? = null
 )

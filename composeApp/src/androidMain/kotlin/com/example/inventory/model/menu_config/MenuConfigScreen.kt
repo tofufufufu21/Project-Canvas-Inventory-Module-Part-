@@ -1,15 +1,9 @@
 package com.example.inventory.model.menu_config
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,17 +19,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.inventory.model.WarehouseItem
+import com.example.inventory.pos.PosViewModel
+import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
-// --- MenuConfigScreen and steps ---
-// This file expects a real AddProductViewModel in your project for runtime.
+import io.github.jan.supabase.postgrest.postgrest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuConfigScreen(vm: AddProductViewModel) {
+fun MenuConfigScreen(
+    vm: AddProductViewModel,
+    posViewModel: PosViewModel? = null
+) {
+    val scope = rememberCoroutineScope()
+    var showSuccess by remember { mutableStateOf(false) }
+    var showError by remember { mutableStateOf<String?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -53,9 +58,9 @@ fun MenuConfigScreen(vm: AddProductViewModel) {
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
                 LinearProgressIndicator(
-                    progress = { step / 7f }, // Updated to use lambda for progress
+                    progress = { step / 7f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
@@ -73,7 +78,7 @@ fun MenuConfigScreen(vm: AddProductViewModel) {
                     color = Color.Gray,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
-                HorizontalDivider(Modifier.padding(vertical = 16.dp)) // Changed to HorizontalDivider
+                HorizontalDivider(Modifier.padding(vertical = 16.dp))
 
                 AnimatedContent(
                     targetState = step,
@@ -100,18 +105,76 @@ fun MenuConfigScreen(vm: AddProductViewModel) {
                     }
                 }
 
-                NavButtons(vm)
+                NavButtons(
+                    vm = vm,
+                    isSaving = isSaving,
+                    onSave = {
+                        scope.launch {
+                            isSaving = true
+                            val result = vm.saveProduct()
+                            isSaving = false
+                            if (result.isSuccess) {
+                                showSuccess = true
+                                posViewModel?.loadProducts()
+                                vm.nextStep()
+                            } else {
+                                showError = result.exceptionOrNull()?.message ?: "Unknown error"
+                            }
+                        }
+                    }
+                )
             }
+        }
+
+        if (showSuccess) {
+            AlertDialog(
+                onDismissRequest = { showSuccess = false },
+                title = { Text("✅ Success") },
+                text = { Text("Product saved successfully to Supabase.") },
+                confirmButton = {
+                    TextButton(onClick = { showSuccess = false }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+
+        showError?.let { err ->
+            AlertDialog(
+                onDismissRequest = { showError = null },
+                title = { Text("❌ Error") },
+                text = { Text(err) },
+                confirmButton = {
+                    TextButton(onClick = { showError = null }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }
 
+// -------------------- STEP 1 --------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step1CategorySelection(vm: AddProductViewModel) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Step 1: Category Selection", style = MaterialTheme.typography.titleLarge)
-        Text("Choose an existing category or create a new one.", style = MaterialTheme.typography.bodyMedium)
+    val scope = rememberCoroutineScope()
 
+    // Automatically load existing categories when screen opens
+    LaunchedEffect(Unit) {
+        scope.launch { vm.loadExistingCategories() }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Step 1: Category Selection", style = MaterialTheme.typography.titleLarge)
+
+        // Option 1 – Create a new category
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = !vm.useExistingCategory,
@@ -134,6 +197,7 @@ fun Step1CategorySelection(vm: AddProductViewModel) {
             )
         }
 
+        // Option 2 – Use existing category
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = vm.useExistingCategory,
@@ -146,55 +210,84 @@ fun Step1CategorySelection(vm: AddProductViewModel) {
                     .padding(start = 8.dp)
             )
         }
-    }
-}
 
-@Composable
-fun Step2AddProduct(vm: AddProductViewModel) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Step 2: Add Product Details", style = MaterialTheme.typography.titleLarge)
-        Text("Enter product information and upload an image.", style = MaterialTheme.typography.bodyMedium)
+        // ✅ Always show dropdown when "Use Existing" is selected
+        if (vm.useExistingCategory) {
+            if (vm.existingCategories.isEmpty()) {
+                Text("Loading categories or none found...", color = Color.Gray)
+            } else {
+                var expanded by remember { mutableStateOf(false) }
+                var selectedName by remember {
+                    mutableStateOf(vm.selectedExistingCategory?.name ?: "")
+                }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(150.dp)
-                    .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                    .clickable { /* image picker stub */ },
-                contentAlignment = Alignment.Center
-            ) { Text("Upload here", color = Color.Gray) }
-
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = vm.productName,
-                    onValueChange = { vm.productName = it },
-                    label = { Text("Product Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = vm.productPrice,
-                    onValueChange = { vm.productPrice = it },
-                    label = { Text("Price") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Visible to customers")
-                    Spacer(Modifier.width(8.dp))
-                    Switch(checked = vm.productVisibility, onCheckedChange = { vm.productVisibility = it })
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedName.ifBlank { "Select Category" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Select Category") },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                            .clickable { expanded = true }
+                    )
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        vm.existingCategories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.name) },
+                                onClick = {
+                                    vm.selectedExistingCategory = category
+                                    selectedName = category.name
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+
+// -------------------- STEP 2 --------------------
+@Composable
+fun Step2AddProduct(vm: AddProductViewModel) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Step 2: Add Product Details", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(
+            value = vm.productName,
+            onValueChange = { vm.productName = it },
+            label = { Text("Product Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = vm.productPrice,
+            onValueChange = { vm.productPrice = it },
+            label = { Text("Price (₱)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Visible to customers")
+            Spacer(Modifier.width(8.dp))
+            Switch(checked = vm.productVisibility, onCheckedChange = { vm.productVisibility = it })
+        }
+    }
+}
+
+// -------------------- STEP 3 --------------------
 @Composable
 fun Step3Variants(vm: AddProductViewModel) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Step 3: Product Variants", style = MaterialTheme.typography.titleLarge)
-        Text("Does this product have different sizes, colors, or options?", style = MaterialTheme.typography.bodyMedium)
-
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(selected = vm.hasVariants, onClick = { vm.hasVariants = true })
             Text("Yes, add variants", modifier = Modifier.clickable { vm.hasVariants = true }.padding(start = 8.dp))
@@ -215,7 +308,7 @@ fun Step3Variants(vm: AddProductViewModel) {
                 OutlinedTextField(
                     value = vm.newVariantExtraPrice,
                     onValueChange = { vm.newVariantExtraPrice = it },
-                    label = { Text("Extra Price (optional)") },
+                    label = { Text("Extra Price") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.width(120.dp)
                 )
@@ -225,13 +318,7 @@ fun Step3Variants(vm: AddProductViewModel) {
             }
 
             if (vm.variants.isNotEmpty()) {
-                Text("Current Variants:", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                ) {
+                LazyColumn(modifier = Modifier.fillMaxWidth().height(150.dp)) {
                     items(vm.variants) { variant ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 8.dp),
@@ -240,10 +327,9 @@ fun Step3Variants(vm: AddProductViewModel) {
                         ) {
                             Text("${variant.name} (+₱${variant.extraPrice})")
                             IconButton(onClick = { vm.removeVariant(variant) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove Variant")
+                                Icon(Icons.Default.Delete, contentDescription = "Remove")
                             }
                         }
-                        HorizontalDivider() // Changed to HorizontalDivider
                     }
                 }
             }
@@ -251,62 +337,160 @@ fun Step3Variants(vm: AddProductViewModel) {
     }
 }
 
+// -------------------- STEP 4 --------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step4StockTracking(vm: AddProductViewModel) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Step 4: Stock Tracking", style = MaterialTheme.typography.titleLarge)
-        Text("Do you want to track ingredients for this product?", style = MaterialTheme.typography.bodyMedium)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
+    // Automatically load ingredients from warehouse
+    LaunchedEffect(Unit) {
+        vm.loadWarehouseIngredients()
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Step 4: Stock Tracking", style = MaterialTheme.typography.titleLarge)
+        Text("Link this menu item to ingredients from your warehouse inventory.", style = MaterialTheme.typography.bodyMedium)
+
+        // --- Enable or Disable Stock Tracking ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(selected = vm.trackStock, onClick = { vm.trackStock = true })
-            Text("Yes, track ingredients", modifier = Modifier.clickable { vm.trackStock = true }.padding(start = 8.dp))
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Yes, track ingredients",
+                modifier = Modifier.clickable { vm.trackStock = true }.padding(start = 8.dp)
+            )
+            Spacer(Modifier.width(16.dp))
             RadioButton(selected = !vm.trackStock, onClick = { vm.trackStock = false })
-            Text("No, don't track stock", modifier = Modifier.clickable { vm.trackStock = false }.padding(start = 8.dp))
+            Text(
+                "No, don't track stock",
+                modifier = Modifier.clickable { vm.trackStock = false }.padding(start = 8.dp)
+            )
         }
 
+        // --- Ingredient Linking Section ---
         if (vm.trackStock) {
-            Text("Allocate Ingredients per Variant:", style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            var selectedIngredient by remember { mutableStateOf<WarehouseItem?>(null) }
+            var quantity by remember { mutableStateOf("") }
+            var expanded by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
                 OutlinedTextField(
-                    value = vm.newIngredientName,
-                    onValueChange = { vm.newIngredientName = it },
-                    label = { Text("Ingredient") },
-                    modifier = Modifier.weight(1f)
+                    value = selectedIngredient?.product_name ?: "",
+                    onValueChange = {},
+                    label = { Text("Select Ingredient") },
+                    readOnly = true,
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                        .clickable { expanded = true }
                 )
-                OutlinedTextField(
-                    value = vm.newIngredientAmount,
-                    onValueChange = { vm.newIngredientAmount = it },
-                    label = { Text("Amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.width(100.dp)
-                )
-                Button(onClick = { vm.addIngredient() }, enabled = vm.newIngredientName.isNotBlank() && vm.newIngredientAmount.isNotBlank()) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Ingredient")
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.heightIn(max = 300.dp)
+                ) {
+                    if (vm.warehouseItems.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("No ingredients available in warehouse") },
+                            onClick = { expanded = false }
+                        )
+                    } else {
+                        vm.warehouseItems.forEach { item ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "${item.product_name} — ${item.quantity}${item.unit ?: ""}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                onClick = {
+                                    selectedIngredient = item
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
-            if (vm.selectedIngredients.isNotEmpty()) {
-                Text("Allocated Ingredients:", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+            OutlinedTextField(
+                value = quantity,
+                onValueChange = { quantity = it },
+                label = { Text("Amount") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    if (selectedIngredient != null && quantity.isNotBlank()) {
+                        val amount = quantity.toDoubleOrNull()
+                        if (amount != null && amount > 0) {
+                            // Prevent duplicates
+                            if (vm.selectedIngredients.none { it.ingredient_id == selectedIngredient!!.id }) {
+                                vm.addIngredient(selectedIngredient!!, amount)
+                                quantity = ""
+                                Toast.makeText(context, "Ingredient added", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Ingredient already added!", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Enter a valid amount", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "Please select an ingredient", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Ingredient")
+                Spacer(Modifier.width(8.dp))
+                Text("Add Ingredient")
+            }
+
+            // --- Display Selected Ingredients ---
+            Spacer(Modifier.height(12.dp))
+            Text("Selected Ingredients:", style = MaterialTheme.typography.titleMedium)
+
+            if (vm.selectedIngredients.isEmpty()) {
+                Text("No ingredients added yet.", color = Color.Gray)
+            } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                        .heightIn(max = 200.dp)
+                        .background(Color(0xFFF9F9F9), RoundedCornerShape(8.dp))
+                        .padding(8.dp)
                 ) {
-                    items(vm.selectedIngredients) { ingredient ->
+                    items(vm.selectedIngredients) { ing ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 8.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${ingredient.name}: ${ingredient.amount}")
-                            IconButton(onClick = { vm.removeIngredient(ingredient) }) {
+                            Text(
+                                "- ID: ${ing.ingredient_id}, ${ing.measurement_value}${ing.measurement_unit}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            IconButton(onClick = {
+                                vm.selectedIngredients =
+                                    vm.selectedIngredients.filterNot { it.ingredient_id == ing.ingredient_id }
+                            }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Remove Ingredient")
                             }
                         }
-                        HorizontalDivider() // Changed to HorizontalDivider
                     }
                 }
             }
@@ -314,132 +498,46 @@ fun Step4StockTracking(vm: AddProductViewModel) {
     }
 }
 
+// -------------------- STEP 5 --------------------
 @Composable
 fun Step5PricingAvailability(vm: AddProductViewModel) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Step 5: Pricing & Availability", style = MaterialTheme.typography.titleLarge)
-        Text("Set prices and availability for each variant.", style = MaterialTheme.typography.bodyMedium)
-
-        if (vm.variants.isEmpty()) {
-            Text("No variants added. Showing base product pricing.", style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(
-                value = vm.productPrice,
-                onValueChange = { vm.productPrice = it },
-                label = { Text("Base Price (₱)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            Text("Variant Pricing:", style = MaterialTheme.typography.titleSmall)
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-            ) {
-                items(vm.variants) { variant ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(variant.name, modifier = Modifier.weight(1f))
-                        OutlinedTextField(
-                            value = variant.extraPrice.toString(),
-                            onValueChange = { vm.updateVariantPrice(variant, it) },
-                            label = { Text("Price") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.width(120.dp)
-                        )
-                    }
-                    HorizontalDivider() // Changed to HorizontalDivider
-                }
-            }
-        }
-
-        Text("Availability:", style = MaterialTheme.typography.titleSmall)
+        OutlinedTextField(
+            value = vm.productPrice,
+            onValueChange = { vm.productPrice = it },
+            label = { Text("Base Price (₱)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = vm.isDineInAvailable, onCheckedChange = { vm.isDineInAvailable = it })
-            Text("Available for Dine-In", modifier = Modifier.padding(start = 8.dp))
+            Text("Available for Dine-In")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = vm.isTakeOutAvailable, onCheckedChange = { vm.isTakeOutAvailable = it })
-            Text("Available for Take-Out", modifier = Modifier.padding(start = 8.dp))
+            Text("Available for Take-Out")
         }
     }
 }
 
+// -------------------- STEP 6 --------------------
 @Composable
 fun Step6Review(vm: AddProductViewModel) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val isWideScreen = maxWidth > 600.dp
-        if (isWideScreen) {
-            Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(modifier = Modifier.weight(1f)) { ReviewSummary(vm) }
-                Column(modifier = Modifier.weight(1f)) { ImagePreview(vm.productImageUri) }
-            }
-        } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                ReviewSummary(vm)
-                Spacer(Modifier.height(16.dp))
-                ImagePreview(vm.productImageUri)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewSummary(vm: AddProductViewModel) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Step 6: Review Product", style = MaterialTheme.typography.titleLarge)
-        Text("Please review the details before confirming.", style = MaterialTheme.typography.bodyMedium)
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) // Changed to HorizontalDivider
-
-        Text("Category:", fontWeight = FontWeight.Bold)
-        Text(if (vm.useExistingCategory) vm.selectedExistingCategory?.name ?: "N/A" else vm.newCategoryName)
-
-        Text("Product Name:", fontWeight = FontWeight.Bold)
-        Text(vm.productName)
-
-        Text("Base Price:", fontWeight = FontWeight.Bold)
-        Text("₱${vm.productPrice}")
-
-        Text("Visibility:", fontWeight = FontWeight.Bold)
-        Text(if (vm.productVisibility) "Visible" else "Hidden")
-
-        if (vm.hasVariants) {
-            Text("Variants:", fontWeight = FontWeight.Bold)
-            vm.variants.forEach { variant -> Text("- ${variant.name} (+₱${variant.extraPrice})") }
-        }
-
-        if (vm.trackStock) {
-            Text("Stock Tracking:", fontWeight = FontWeight.Bold)
-            vm.selectedIngredients.forEach { ingredient -> Text("- ${ingredient.name}: ${ingredient.amount}") }
-        }
-
-        Text("Dine-In Available:", fontWeight = FontWeight.Bold)
-        Text(vm.isDineInAvailable.toString())
-
-        Text("Take-Out Available:", fontWeight = FontWeight.Bold)
-        Text(vm.isTakeOutAvailable.toString())
+        Text("Category: ${if (vm.useExistingCategory) vm.selectedExistingCategory?.name ?: "N/A" else vm.newCategoryName}")
+        Text("Product: ${vm.productName}")
+        Text("Base Price: ₱${vm.productPrice}")
+        Text("Variants: ${if (vm.hasVariants) vm.variants.joinToString { it.name } else "None"}")
+        Text("Track Stock: ${vm.trackStock}")
+        Text("Dine-In: ${vm.isDineInAvailable}, Take-Out: ${vm.isTakeOutAvailable}")
     }
 }
 
+// -------------------- STEP 7 --------------------
 @Composable
-private fun ImagePreview(imageUri: String?) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .background(Color.LightGray, RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        if (imageUri != null) Text("Image: $imageUri") else Text("No Image Uploaded", color = Color.Gray)
-    }
-}
-
-@Composable
-fun Step7Confirmation() { // Removed vm parameter
+fun Step7Confirmation() {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -453,22 +551,45 @@ fun Step7Confirmation() { // Removed vm parameter
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Your first product is now ready to sell!",
+            text = "Your product is now ready to sell!",
             style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            textAlign = TextAlign.Center
         )
     }
 }
 
+// -------------------- NAV BUTTONS --------------------
 @Composable
-fun NavButtons(vm: AddProductViewModel) {
+fun NavButtons(
+    vm: AddProductViewModel,
+    isSaving: Boolean = false,
+    onSave: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedButton(onClick = { vm.previousStep() }, enabled = vm.currentStep > 1) { Text("Back") }
-        Button(onClick = { vm.nextStep() }, enabled = vm.currentStep < 7) { Text(if (vm.currentStep == 6) "Confirm" else "Next") }
+        OutlinedButton(onClick = { vm.previousStep() }, enabled = vm.currentStep > 1 && !isSaving) {
+            Text("Back")
+        }
+
+        if (vm.currentStep == 6) {
+            Button(onClick = onSave, enabled = !isSaving) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(if (isSaving) "Saving..." else "Save Product")
+            }
+        } else {
+            Button(onClick = { vm.nextStep() }, enabled = !isSaving) {
+                Text(if (vm.currentStep == 7) "Finish" else "Next")
+            }
+        }
     }
 }

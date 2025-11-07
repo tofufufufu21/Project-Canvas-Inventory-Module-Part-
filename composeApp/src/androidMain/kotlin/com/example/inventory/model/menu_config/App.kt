@@ -31,22 +31,26 @@ import com.example.inventory.pos.PosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
+fun App(
+    posViewModel: PosViewModel,
+    repo: com.example.inventory.data.model.repository.InventoryRepositoryImpl,
+    inventoryScreen: @Composable () -> Unit
+) {
     var selected by remember { mutableStateOf(0) }
     val items = listOf("Dashboard", "Analytics", "Inventory", "Menu Config")
-    val icons: List<ImageVector> = listOf(
-        Icons.Default.Dashboard, 
-        Icons.Default.Analytics, 
-        Icons.Default.Inventory, 
+    val icons = listOf(
+        Icons.Default.Dashboard,
+        Icons.Default.Analytics,
+        Icons.Default.Inventory,
         Icons.AutoMirrored.Filled.MenuBook
     )
 
-    val addProductViewModel: AddProductViewModel = remember { AddProductViewModelImpl() }
+    val addProductViewModel: AddProductViewModel = remember { AddProductViewModelImpl(repo) } // ✅ fixed
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { /* No title */ },
+                title = {},
                 navigationIcon = {
                     Icon(
                         imageVector = Icons.Default.Terminal,
@@ -56,16 +60,10 @@ fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
                 },
                 actions = {
                     IconButton(onClick = { /* TODO: Handle notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications"
-                        )
+                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                     }
                     IconButton(onClick = { /* TODO: Handle settings */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
-                        )
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
             )
@@ -88,9 +86,9 @@ fun App(posViewModel: PosViewModel, inventoryScreen: @Composable () -> Unit) {
             Box(Modifier.weight(1f)) {
                 when (selected) {
                     0 -> PosMainScreen(posViewModel)
-                    1 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Analytics Screen")
-                         }
+                    1 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Analytics Screen")
+                    }
                     2 -> inventoryScreen()
                     3 -> MenuConfigScreen(addProductViewModel)
                 }

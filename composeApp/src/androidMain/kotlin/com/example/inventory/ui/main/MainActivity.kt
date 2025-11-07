@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
                 App(
                     posViewModel = posViewModel,
+                    repo = inventoryRepository,
                     inventoryScreen = {
                         WarehouseScreen(
                             warehouseViewModel = warehouseViewModel,

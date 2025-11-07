@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextAlign
-import com.example.inventory.model.ProductDTO // This import is still needed as ProductDTO is in a different package
+import com.example.inventory.model.ProductDTO
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,28 +61,87 @@ import java.util.Locale
 import com.example.inventory.pos.CartItem
 import com.example.inventory.pos.PaymentState
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+
 @Composable
 fun PosMainScreen(vm: PosViewModel) {
     val showPayment by vm.showPayment.collectAsState()
 
     Row(Modifier.fillMaxSize()) {
         // Left Panel: Product Grid (60%)
-        Column(Modifier.fillMaxHeight().weight(0.6f).padding(16.dp)) {
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .weight(0.6f)
+                .padding(16.dp)
+        ) {
             val searchQuery by vm.searchQuery.collectAsState()
             val category by vm.selectedCategory.collectAsState()
             val products by vm.products.collectAsState()
+            val groupedProducts = vm.getGroupedProducts() // grouped variant list
 
-            SearchBar(query = searchQuery, onQueryChange = vm::setSearchQuery)
+            // ✅ Search bar + refresh button row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Search bar takes up 85% width
+                Box(Modifier.weight(1f)) {
+                    SearchBar(query = searchQuery, onQueryChange = vm::setSearchQuery)
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                // ✅ Refresh button
+                IconButton(onClick = { vm.reloadProducts() }) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = Color(0xFF2D6A4F)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(8.dp))
             DateDisplay()
             Spacer(Modifier.height(8.dp))
-            // <-- Pass products to CategoryTabs (fixed)
-            CategoryTabs(category = category, onSelect = vm::selectCategory, products = products)
+            CategoryTabs(
+                category = category,
+                onSelect = vm::selectCategory,
+                products = products
+            )
             Spacer(Modifier.height(8.dp))
-            ProductGrid(products = products, onTap = { vm.addProduct(it) })
+
+            // ✅ Grouped product grid (shows variants dialog on tap)
+            GroupedProductGrid(
+                products = groupedProducts,
+                onSelectVariant = { vm.addProduct(it) }
+            )
         }
 
-        // Right Panel: Order and Payment Overlay
+        // ✅ Right Panel: Order + Payment
         Box(Modifier.fillMaxHeight().weight(0.4f)) {
             val orderPanelAlpha = if (showPayment) 0.3f else 1f
             OrderPanel(vm = vm, modifier = Modifier.alpha(orderPanelAlpha))
@@ -90,6 +149,7 @@ fun PosMainScreen(vm: PosViewModel) {
         }
     }
 
+    // ✅ Insufficient stock dialog
     val insufficient by vm.insufficientModal.collectAsState()
     if (insufficient != null) {
         InsufficientStockDialog(
@@ -99,7 +159,6 @@ fun PosMainScreen(vm: PosViewModel) {
         )
     }
 }
-
 @Composable
 fun OrderPanel(vm: PosViewModel, modifier: Modifier = Modifier) {
     val orderId by vm.orderId.collectAsState()
@@ -267,6 +326,84 @@ fun CategoryTabs(
     }
 }
 
+/**
+ * ---- NEW: Grouped product UI (one box per product name; shows base price)
+ * When tapped opens a variant list (AlertDialog). Selecting a variant calls onSelectVariant.
+ */
+@Composable
+fun GroupedProductGrid(products: List<PosViewModel.GroupedProduct>, onSelectVariant: (ProductDTO) -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        products.chunked(3).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                row.forEach { grouped ->
+                    GroupedProductCard(
+                        groupedProduct = grouped,
+                        modifier = Modifier.weight(1f),
+                        onSelectVariant = onSelectVariant
+                    )
+                }
+                if (row.size < 3) repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun GroupedProductCard(
+    groupedProduct: PosViewModel.GroupedProduct,
+    modifier: Modifier = Modifier,
+    onSelectVariant: (ProductDTO) -> Unit
+) {
+    var showVariants by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = modifier.clickable { showVariants = true },
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Box(
+                Modifier
+                    .height(90.dp)
+                    .fillMaxWidth()
+                    .background(Color(0xFFDDE3E9), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(groupedProduct.productName, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Base Price: ₱${groupedProduct.basePrice.toInt()}",
+                fontSize = 14.sp,
+                color = Color(0xFF495057)
+            )
+        }
+    }
+
+    if (showVariants) {
+        AlertDialog(
+            onDismissRequest = { showVariants = false },
+            title = { Text(groupedProduct.productName) },
+            text = {
+                Column {
+                    groupedProduct.variants.forEach { variant ->
+                        TextButton(onClick = {
+                            onSelectVariant(variant)
+                            showVariants = false
+                        }) {
+                            Text("${variant.variantName} — ₱${variant.price.toInt()}")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVariants = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+/* --- Kept original ProductGrid/ProductCard (unused now) so nothing else breaks --- */
 
 @Composable
 fun ProductGrid(products: List<ProductDTO>, onTap: (ProductDTO) -> Unit) {
@@ -466,8 +603,6 @@ fun CashPaymentArea(payment: PaymentState, onTendered: (Double) -> Unit) {
         )
     }
 }
-
-
 
 @Composable
 fun OnlinePaymentArea() {
