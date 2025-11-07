@@ -6,15 +6,12 @@ import com.example.inventory.model.RecipeIngredient
 import com.example.inventory.model.WarehouseItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.example.inventory.model.menu_config.VariantData
-import com.example.inventory.model.menu_config.IngredientData
-import com.example.inventory.model.menu_config.Category
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
-// Simple data holders used by the UI
+
 /**
  * AddProductViewModel interface (UI-facing state + actions)
  * Note: selectedIngredients is List<RecipeIngredient> because we will send those directly to Supabase.
@@ -73,12 +70,8 @@ class AddProductViewModelImpl(
 
     // Step navigation
     override var currentStep by mutableStateOf(1)
-    override fun nextStep() {
-        if (currentStep < 7) currentStep++
-    }
-    override fun previousStep() {
-        if (currentStep > 1) currentStep--
-    }
+    override fun nextStep() { if (currentStep < 7) currentStep++ }
+    override fun previousStep() { if (currentStep > 1) currentStep-- }
 
     // Category
     override var useExistingCategory by mutableStateOf(false)
@@ -95,18 +88,18 @@ class AddProductViewModelImpl(
     override var hasVariants by mutableStateOf(false)
     override var newVariantName by mutableStateOf("")
     override var newVariantExtraPrice by mutableStateOf("")
-    override var variants = mutableStateListOf<VariantData>()
+    override var variants: SnapshotStateList<VariantData> = mutableStateListOf()
 
     override fun addVariant() {
         val extra = newVariantExtraPrice.toDoubleOrNull() ?: 0.0
         val v = VariantData(name = newVariantName.trim(), extraPrice = extra)
-        variants.add(v) // 👈 modifies the state list directly
+        variants.add(v)
         newVariantName = ""
         newVariantExtraPrice = ""
     }
 
     override fun removeVariant(variant: VariantData) {
-        variants.remove(variant) // 👈 works with state list
+        variants.remove(variant)
     }
 
     // Ingredients & warehouse list
@@ -130,23 +123,20 @@ class AddProductViewModelImpl(
      * Converts nullable WarehouseItem.id safely into Long using `?: 0L`
      */
     override fun addIngredient(item: WarehouseItem, amount: Double) {
-        // ensure we use the same shape your RecipeIngredient expects
         val ri = RecipeIngredient(
             id = null,
-            ingredient_id = item.id ?: 0L,          // safe conversion from Long?
-            variant_id = null,                      // repo.createProductRecipe will set variant_id later
+            ingredient_id = item.id ?: 0L,
+            variant_id = null,
             measurement_value = amount,
             measurement_unit = item.unit ?: "g"
         )
         selectedIngredients = selectedIngredients + ri
     }
 
-    // ✅ Fetch all existing menu categories from Supabase
-
-
+    // Fetch all existing menu categories from Supabase
     override var existingCategories by mutableStateOf<List<Category>>(emptyList())
 
-    // 🧠 Function to load categories
+    // Load categories
     override suspend fun loadExistingCategories() {
         existingCategories = withContext(Dispatchers.IO) {
             try {
@@ -163,7 +153,6 @@ class AddProductViewModelImpl(
     // Availability
     override var isDineInAvailable by mutableStateOf(false)
     override var isTakeOutAvailable by mutableStateOf(false)
-
 
     // Save product: creates category -> product -> variant(s) -> product_recipes (ingredients)
     override suspend fun saveProduct(): Result<Long> = withContext(Dispatchers.IO) {
@@ -192,15 +181,10 @@ class AddProductViewModelImpl(
                 listOf(repo.createVariant(productId, "Default", basePrice))
             }
 
-            // 4) If there are selectedIngredients (RecipeIngredient objects), attach them to each variant.
-            //    InventoryRepositoryImpl.createProductRecipe expects a list of RecipeIngredient; it
-            //    will set variant_id via payload map (or we set variant_id here manually).
+            // 4) If there are selectedIngredients, attach them to each variant.
             if (selectedIngredients.isNotEmpty()) {
-                // Make a copy of ingredients per variant with variant_id set
                 variantIds.forEach { vid ->
-                    val payload = selectedIngredients.map { ri ->
-                        ri.copy(variant_id = vid)
-                    }
+                    val payload = selectedIngredients.map { ri -> ri.copy(variant_id = vid) }
                     repo.createProductRecipe(vid, payload)
                 }
             }
